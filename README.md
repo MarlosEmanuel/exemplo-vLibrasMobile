@@ -1,178 +1,74 @@
-# Demo VLibras — Mobile
+# 🤟 Demo VLibras — React Native (Mobile)
 
-Este projeto é um exemplo de aplicativo React Native que integra o plugin VLibras dentro de uma `WebView` e consome uma API local para obter uma "glosa" (tradução em Libras) que é injetada na WebView para reprodução.
+Este projeto é um exemplo prático e "hardcode" de um aplicativo React Native que integra o avatar 3D do VLibras usando uma `WebView`. Ele consome a infraestrutura oficial do governo rodando localmente na sua máquina para traduzir textos (notícias, parágrafos, etc.) para **Glosas de Libras** e injeta o resultado diretamente no motor 3D do aplicativo.
 
-**Arquivo principal**
- - [App.tsx](App.tsx#L1-L200) — implementa o fluxo, com comentários explicativos.
+## 🏗️ Entendendo a Arquitetura (Para Estudantes)
 
-## Requisitos
- - Node.js (versão 16+ recomendada)
- - Yarn ou npm
- - React Native CLI
- - Android Studio (para Android) ou Xcode (para iOS)
+Para que a tradução funcione de ponta a ponta sem depender de servidores externos, você precisa rodar **três peças fundamentais** na sua máquina. Não basta rodar só o App!
 
-## Passo a passo (rápido e bonitinho)
+1. **`vlibras-translator-text-core` (O Cérebro):** É o motor em Python/C++ que faz o processamento de linguagem natural (PLN). Ele escuta filas de mensagens (RabbitMQ) e transforma Português em Glosa de Libras.
+2. **`vlibras-translator-api` (A Ponte):** Uma API em Node.js. O nosso App React Native faz um `POST` para cá. Esta API pega o texto, joga na fila do RabbitMQ para o *Core* traduzir, pega a resposta e devolve pro App.
+3. **`App React Native` (O Frontend):** A interface onde o usuário interage e onde o motor 3D (Ícaro) é renderizado.
 
-1) Instale dependências
+## 🛠️ Requisitos Préximos
+- **Node.js** (versão 16+ recomendada)
+- **Yarn** ou **npm**
+- **Docker e Docker Compose** (Obrigatório para rodar os bancos e mensageria do backend)
+- **Android Studio** (para Android) ou **Xcode** (para iOS / Mac)
 
-```bash
-yarn install
-# ou
-npm install
-```
+---
 
-2) (iOS) Instale pods
+## 🚀 Passo a Passo da Configuração
 
-```bash
-cd ios && bundle install && bundle exec pod install && cd ..
-```
+### Passo 1: Subindo a Infraestrutura (Text Core e Bancos)
+Primeiro, precisamos ligar o motor de tradução e os bancos de dados (MongoDB, Redis, Postgres e RabbitMQ).
 
-3) Inicie a API local
+1. Clone o repositório do Text Core:
+	`git clone https://github.com/spbgovbr-vlibras/vlibras-translator-text-core.git`
+	`cd vlibras-translator-text-core`
+2. Suba a infraestrutura via Docker:
+	`docker-compose up -d`
+	*(Aguarde os containers subirem. O RabbitMQ ficará disponível para a API se conectar).*
 
- - O app espera uma rota POST em `/translate` que receba JSON: `{ "text": "..." }` e retorne uma glosa.
- - A resposta pode ser JSON `{ "glosa": "..." }` ou texto simples.
+### Passo 2: Ligando a API (Node.js)
+Agora, vamos ligar o servidor que vai receber as requisições do nosso aplicativo.
 
-Exemplo rápido com curl:
+1. Em outro terminal, clone a API:
+	`git clone https://github.com/spbgovbr-vlibras/vlibras-translator-api.git`
+	`cd vlibras-translator-api`
+	`npm install`
+2. **Atenção às Variáveis de Ambiente!** Para evitar conflitos de portas (como a porta 3000 que costuma ser muito usada) e conectar corretamente ao RabbitMQ do Docker, rode o servidor passando estas credenciais exatas:
+	`AMQP_HOST=127.0.0.1 AMQP_PORT=5673 AMQP_USER=vlibras AMQP_PASS=vlibras PORT=3001 npm run dev`
+	*Se tudo der certo, você verá o log `Listening on port 3001`.*
 
-```bash
-curl -X POST http://127.0.0.1:3001/translate \
-	-H "Content-Type: application/json" \
-	-d '{"text":"Olá, isto é um teste"}'
-```
+### Passo 3: Configurando o App React Native
+Com o backend inteiro rodando, vamos para o aplicativo.
 
-4) Ajuste `API_URL` se necessário
+1. Instale as dependências:
+	`yarn install`
+2. Instale os Pods do iOS:
+	`cd ios && pod install && cd ..`
+3. Verifique o arquivo `App.tsx` e certifique-se de que a `API_URL` está apontando para o lugar certo:
+	- **Emulador iOS:** `http://127.0.0.1:3001/translate`
+	- **Emulador Android:** `http://10.0.2.2:3001/translate`
+	- **Dispositivo Físico:** IP da sua rede WiFi (ex: `http://192.168.0.15:3001/translate`)
 
- - Se estiver rodando o app num dispositivo físico, substitua `http://127.0.0.1:3001` pelo IP da sua máquina (ex.: `http://192.168.0.10:3001`).
+### Passo 4: Rodando a Aplicação!
+Inicie o Metro Bundler:
+`npx react-native start`
 
-5) Inicie o Metro bundler
+Em um novo terminal, abra o emulador:
+`npx react-native run-ios` ou `npx react-native run-android`
 
-```bash
-npx react-native start
-```
+Abra o app, aguarde o Ícaro carregar no fundo escuro e toque em **"Ler Notícia em Libras"**. O texto fará a viagem do React Native -> API Node -> RabbitMQ -> Text Core Python -> e voltará como glosa para o Avatar sinalizar!
 
-6) Rode o app
+---
 
- - Android
+## 🐛 Dicas de Depuração e Erros Comuns (Troubleshooting)
 
-```bash
-npx react-native run-android
-```
+Estudante, se quebrar, não se desespere. Aqui estão os erros mais comuns desta arquitetura e como resolvê-los:
 
- - iOS
-
-```bash
-npx react-native run-ios
-```
-
-7) Teste
-
- - Abra o app, aguarde o carregamento da WebView (o plugin VLibras é carregado via CDN).
- - Toque em "Ler Notícia em Libras" para enviar o texto de exemplo à API.
- - Observe o status na tela e verifique se o player da WebView reproduz a glosa.
-
-## Dicas de depuração
- - Verifique logs do Metro e do dispositivo para erros de rede ou JS.
- - Se o app não conseguir reproduzir a glosa, verifique a função `window.receberGlosa` definida dentro da WebView.
- - Ajuste `API_URL` para apontar corretamente ao backend a partir do emulador/dispositivo.
-
-## Observações
- - Os comentários explicativos foram adicionados em `App.tsx` para facilitar a leitura do fluxo: sanitização do texto, chamada à API e injeção de JS na WebView.
-
-Quer que eu também crie um servidor de exemplo em Node.js para a rota `/translate`? Posso gerar isso rapidamente.
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
-
-# Getting Started
-
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
-
-## Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
-
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+* **O App não renderiza o Ícaro (Tela preta):** Verifique se o atributo `mediaPlaybackRequiresUserAction={false}` está configurado na sua `WebView`. Celulares bloqueiam mídias de iniciarem sozinhas sem essa flag.
+* **Erro `ValidationError: Path 'text' is required` na API:** O MongoDB recusa salvar textos vazios. Se o seu HTML ou React Native enviar espaços em branco ou parágrafos terminando com um ponto final perdido, o banco crasha. **Solução:** O código no `App.tsx` já possui uma "sanitarização" que usa Regex para limpar a string antes de dar o `fetch`.
+* **API crashando em loop assim que liga (Poison Message):** Se uma requisição ruim quebrou a API, a mensagem fica presa no cache do **Redis**. Para destravar a API, limpe o cache rodando: `docker exec -it redis-vlibras redis-cli FLUSHALL` e reinicie a API.
+* **Porta em uso:** Se rodar apenas `npm run dev`, a API tentará usar a porta `3000`. Utilize sempre o comando completo do *Passo 2* para forçar a porta `3001`.
