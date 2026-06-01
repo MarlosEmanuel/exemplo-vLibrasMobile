@@ -1,3 +1,84 @@
+# Demo VLibras — Mobile
+
+Este projeto é um exemplo de aplicativo React Native que integra o plugin VLibras dentro de uma `WebView` e consome uma API local para obter uma "glosa" (tradução em Libras) que é injetada na WebView para reprodução.
+
+**Arquivo principal**
+ - [App.tsx](App.tsx#L1-L200) — implementa o fluxo, com comentários explicativos.
+
+## Requisitos
+ - Node.js (versão 16+ recomendada)
+ - Yarn ou npm
+ - React Native CLI
+ - Android Studio (para Android) ou Xcode (para iOS)
+
+## Passo a passo (rápido e bonitinho)
+
+1) Instale dependências
+
+```bash
+yarn install
+# ou
+npm install
+```
+
+2) (iOS) Instale pods
+
+```bash
+cd ios && bundle install && bundle exec pod install && cd ..
+```
+
+3) Inicie a API local
+
+ - O app espera uma rota POST em `/translate` que receba JSON: `{ "text": "..." }` e retorne uma glosa.
+ - A resposta pode ser JSON `{ "glosa": "..." }` ou texto simples.
+
+Exemplo rápido com curl:
+
+```bash
+curl -X POST http://127.0.0.1:3001/translate \
+	-H "Content-Type: application/json" \
+	-d '{"text":"Olá, isto é um teste"}'
+```
+
+4) Ajuste `API_URL` se necessário
+
+ - Se estiver rodando o app num dispositivo físico, substitua `http://127.0.0.1:3001` pelo IP da sua máquina (ex.: `http://192.168.0.10:3001`).
+
+5) Inicie o Metro bundler
+
+```bash
+npx react-native start
+```
+
+6) Rode o app
+
+ - Android
+
+```bash
+npx react-native run-android
+```
+
+ - iOS
+
+```bash
+npx react-native run-ios
+```
+
+7) Teste
+
+ - Abra o app, aguarde o carregamento da WebView (o plugin VLibras é carregado via CDN).
+ - Toque em "Ler Notícia em Libras" para enviar o texto de exemplo à API.
+ - Observe o status na tela e verifique se o player da WebView reproduz a glosa.
+
+## Dicas de depuração
+ - Verifique logs do Metro e do dispositivo para erros de rede ou JS.
+ - Se o app não conseguir reproduzir a glosa, verifique a função `window.receberGlosa` definida dentro da WebView.
+ - Ajuste `API_URL` para apontar corretamente ao backend a partir do emulador/dispositivo.
+
+## Observações
+ - Os comentários explicativos foram adicionados em `App.tsx` para facilitar a leitura do fluxo: sanitização do texto, chamada à API e injeção de JS na WebView.
+
+Quer que eu também crie um servidor de exemplo em Node.js para a rota `/translate`? Posso gerar isso rapidamente.
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
