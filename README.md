@@ -1,74 +1,93 @@
 # 🤟 Demo VLibras — React Native (Mobile)
 
-Este projeto é um exemplo prático e "hardcode" de um aplicativo React Native que integra o avatar 3D do VLibras usando uma `WebView`. Ele consome a infraestrutura oficial do governo rodando localmente na sua máquina para traduzir textos (notícias, parágrafos, etc.) para **Glosas de Libras** e injeta o resultado diretamente no motor 3D do aplicativo.
+Guia didático de um app React Native que usa a WebView para exibir o avatar 3D do VLibras e conversar com a infraestrutura local de tradução. A ideia aqui é mostrar o fluxo completo, de ponta a ponta, sem depender de serviços externos.
 
-## 🏗️ Entendendo a Arquitetura (Para Estudantes)
+## Visão geral da arquitetura
 
-Para que a tradução funcione de ponta a ponta sem depender de servidores externos, você precisa rodar **três peças fundamentais** na sua máquina. Não basta rodar só o App!
+Para a tradução funcionar, você precisa subir três partes na sua máquina. O app sozinho não faz a tradução.
 
-1. **`vlibras-translator-text-core` (O Cérebro):** É o motor em Python/C++ que faz o processamento de linguagem natural (PLN). Ele escuta filas de mensagens (RabbitMQ) e transforma Português em Glosa de Libras.
-2. **`vlibras-translator-api` (A Ponte):** Uma API em Node.js. O nosso App React Native faz um `POST` para cá. Esta API pega o texto, joga na fila do RabbitMQ para o *Core* traduzir, pega a resposta e devolve pro App.
-3. **`App React Native` (O Frontend):** A interface onde o usuário interage e onde o motor 3D (Ícaro) é renderizado.
+1. `vlibras-translator-text-core`: motor em Python/C++ que processa o texto e produz a glosa em Libras.
+2. `vlibras-translator-api`: API em Node.js que recebe o texto do app, publica na fila e devolve a resposta.
+3. `App React Native`: interface do usuário e camada que injeta a glosa na WebView do VLibras.
 
-## 🛠️ Requisitos Préximos
-- **Node.js** (versão 16+ recomendada)
-- **Yarn** ou **npm**
-- **Docker e Docker Compose** (Obrigatório para rodar os bancos e mensageria do backend)
-- **Android Studio** (para Android) ou **Xcode** (para iOS / Mac)
+## Requisitos
 
----
+- Node.js 16 ou superior
+- Yarn ou npm
+- Docker e Docker Compose
+- Android Studio para Android ou Xcode para iOS
 
-## 🚀 Passo a Passo da Configuração
+## Como executar
 
-### Passo 1: Subindo a Infraestrutura (Text Core e Bancos)
-Primeiro, precisamos ligar o motor de tradução e os bancos de dados (MongoDB, Redis, Postgres e RabbitMQ).
+### 1. Suba o Text Core e a infraestrutura local
 
-1. Clone o repositório do Text Core:
-	`git clone https://github.com/spbgovbr-vlibras/vlibras-translator-text-core.git`
-	`cd vlibras-translator-text-core`
-2. Suba a infraestrutura via Docker:
-	`docker-compose up -d`
-	*(Aguarde os containers subirem. O RabbitMQ ficará disponível para a API se conectar).*
+O Text Core depende de serviços auxiliares como MongoDB, Redis, Postgres e RabbitMQ.
 
-### Passo 2: Ligando a API (Node.js)
-Agora, vamos ligar o servidor que vai receber as requisições do nosso aplicativo.
+```bash
+git clone https://github.com/spbgovbr-vlibras/vlibras-translator-text-core.git
+cd vlibras-translator-text-core
+docker-compose up -d
+```
 
-1. Em outro terminal, clone a API:
-	`git clone https://github.com/spbgovbr-vlibras/vlibras-translator-api.git`
-	`cd vlibras-translator-api`
-	`npm install`
-2. **Atenção às Variáveis de Ambiente!** Para evitar conflitos de portas (como a porta 3000 que costuma ser muito usada) e conectar corretamente ao RabbitMQ do Docker, rode o servidor passando estas credenciais exatas:
-	`AMQP_HOST=127.0.0.1 AMQP_PORT=5673 AMQP_USER=vlibras AMQP_PASS=vlibras PORT=3001 npm run dev`
-	*Se tudo der certo, você verá o log `Listening on port 3001`.*
+Espere os containers subirem antes de continuar. O RabbitMQ precisa estar disponível para a API se conectar.
 
-### Passo 3: Configurando o App React Native
-Com o backend inteiro rodando, vamos para o aplicativo.
+### 2. Suba a API Node.js
 
-1. Instale as dependências:
-	`yarn install`
-2. Instale os Pods do iOS:
-	`cd ios && pod install && cd ..`
-3. Verifique o arquivo `App.tsx` e certifique-se de que a `API_URL` está apontando para o lugar certo:
-	- **Emulador iOS:** `http://127.0.0.1:3001/translate`
-	- **Emulador Android:** `http://10.0.2.2:3001/translate`
-	- **Dispositivo Físico:** IP da sua rede WiFi (ex: `http://192.168.0.15:3001/translate`)
+Em outro terminal:
 
-### Passo 4: Rodando a Aplicação!
-Inicie o Metro Bundler:
-`npx react-native start`
+```bash
+git clone https://github.com/spbgovbr-vlibras/vlibras-translator-api.git
+cd vlibras-translator-api
+npm install
+AMQP_HOST=127.0.0.1 AMQP_PORT=5673 AMQP_USER=vlibras AMQP_PASS=vlibras PORT=3001 npm run dev
+```
 
-Em um novo terminal, abra o emulador:
-`npx react-native run-ios` ou `npx react-native run-android`
+Se tudo estiver certo, o terminal deve mostrar algo como `Listening on port 3001`.
 
-Abra o app, aguarde o Ícaro carregar no fundo escuro e toque em **"Ler Notícia em Libras"**. O texto fará a viagem do React Native -> API Node -> RabbitMQ -> Text Core Python -> e voltará como glosa para o Avatar sinalizar!
+### 3. Configure o app React Native
 
----
+```bash
+yarn install
+cd ios && pod install && cd ..
+```
 
-## 🐛 Dicas de Depuração e Erros Comuns (Troubleshooting)
+O arquivo [App.tsx](App.tsx) usa atualmente a URL abaixo:
 
-Estudante, se quebrar, não se desespere. Aqui estão os erros mais comuns desta arquitetura e como resolvê-los:
+```ts
+http://127.0.0.1:3001/translate
+```
 
-* **O App não renderiza o Ícaro (Tela preta):** Verifique se o atributo `mediaPlaybackRequiresUserAction={false}` está configurado na sua `WebView`. Celulares bloqueiam mídias de iniciarem sozinhas sem essa flag.
-* **Erro `ValidationError: Path 'text' is required` na API:** O MongoDB recusa salvar textos vazios. Se o seu HTML ou React Native enviar espaços em branco ou parágrafos terminando com um ponto final perdido, o banco crasha. **Solução:** O código no `App.tsx` já possui uma "sanitarização" que usa Regex para limpar a string antes de dar o `fetch`.
-* **API crashando em loop assim que liga (Poison Message):** Se uma requisição ruim quebrou a API, a mensagem fica presa no cache do **Redis**. Para destravar a API, limpe o cache rodando: `docker exec -it redis-vlibras redis-cli FLUSHALL` e reinicie a API.
-* **Porta em uso:** Se rodar apenas `npm run dev`, a API tentará usar a porta `3000`. Utilize sempre o comando completo do *Passo 2* para forçar a porta `3001`.
+Se você estiver no Android emulador ou em um dispositivo físico, ajuste esse endereço no `App.tsx`:
+
+- iOS emulador: `http://127.0.0.1:3001/translate`
+- Android emulador: `http://10.0.2.2:3001/translate`
+- Dispositivo físico: IP da sua máquina na rede local, por exemplo `http://192.168.0.15:3001/translate`
+
+### 4. Rode a aplicação
+
+```bash
+npx react-native start
+```
+
+Em outro terminal:
+
+```bash
+npx react-native run-ios
+# ou
+npx react-native run-android
+```
+
+Abra o app, aguarde o avatar carregar e toque em **Ler Notícia em Libras**. O fluxo esperado é:
+
+React Native -> API Node -> RabbitMQ -> Text Core -> glosa -> WebView
+
+## Troubleshooting
+
+- Tela preta no VLibras: confirme se `mediaPlaybackRequiresUserAction={false}` está setado na WebView.
+- Erro `ValidationError: Path 'text' is required`: revise se o texto enviado não está vazio. O `App.tsx` já faz uma sanitização básica antes do `fetch`.
+- API entrando em loop: limpe o Redis com `docker exec -it redis-vlibras redis-cli FLUSHALL` e reinicie a API.
+- Porta 3000 em uso: use sempre o comando com `PORT=3001` mostrado acima.
+
+## Observação importante
+
+Este README foi escrito para estudantes entenderem o fluxo completo da arquitetura local do VLibras. Se você quiser, eu também posso adaptar o texto para um tom mais técnico, mais curto, ou mais acadêmico.
